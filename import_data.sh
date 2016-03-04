@@ -8,6 +8,8 @@ yellow_schema_pre_2015="(vendor_id,pickup_datetime,dropoff_datetime,passenger_co
 
 yellow_schema_2015="(vendor_id,pickup_datetime,dropoff_datetime,passenger_count,trip_distance,pickup_longitude,pickup_latitude,rate_code_id,store_and_fwd_flag,dropoff_longitude,dropoff_latitude,payment_type,fare_amount,extra,mta_tax,tip_amount,tolls_amount,improvement_surcharge,total_amount)"
 
+
+
 for filename in data/green*.csv; do
     [[ $filename =~ $year_regex ]]
 

@@ -15,7 +15,7 @@ WHERE ST_Within(t.pickup,n.geom);
 
 CREATE TABLE temp_dropoffs AS
 SELECT t.id, n.gid
-FROM tmp_points t, nyct2010 n
+FROM temp_points t, nyct2010 n
 WHERE ST_Within(t.dropoff, n.geom);
 
 INSERT INTO trips
