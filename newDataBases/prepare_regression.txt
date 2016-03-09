@@ -1,0 +1,63 @@
+CREATE TABLE nyct2010_centroids AS
+SELECT
+	gid,
+	ST_X(ST_Centroid(geom)) AS long,
+	ST_Y(ST_CENTROID(geom)) AS lat,
+	ST_Centroid(geom) AS centroid
+FROM nyct2010;
+ALTER TABLE nyct2010_centroids ADD PRIMARY KEY (gid);
+
+CREATE TABLE neighborhood_centroids AS
+SELECT
+	ntacode,
+	ntaname,
+	boroname,
+	ST_Union(geom) AS geom,
+  	ST_X(ST_Centroid(ST_Union(geom))) AS long,
+  	ST_Y(ST_Centroid(ST_Union(geom))) AS lat
+FROM nyct2010
+GROUP BY noticed, ntaname, boroname;
+
+CREATE INDEX index_trips_on_pickup_gid ON trips (pickup_nyct2010_gid);
+CREATE INDEX index_trips_on_dropoff_gid ON trips (dropoff_nyct2010_gid);
+
+CREATE TABLE trips_nyct2010 AS
+SELECT
+	pickup_nyct2010_gid AS pickup_gid,
+	dropoff_nyct2010_gid AS dropoff_gid,
+	U2.long AS long_centroid_pickup
+	U2.lat AS lat_centroid_pickup
+	U3.long AS long_centroid_dropoff
+	U3.lat	AS lat_centroid_dropoff
+	CASE 
+		WHEN EXTRACT(hour from pickup_datetime) BETWEEN 7 AND 10 THEN ‘morning’
+		WHEN EXTRACT(hour from pickup_datetime) BETWEEN 16 AND 19 THEN ‘evening’
+	END as rush_hour,
+
+	CASE WHEN EXTRACT(dow FROM pickup_datetime) BETWEEN 1 AND 5 THEN 'weekday' ELSE 'weekend' END AS dow_type,
+  	CASE
+    	WHEN EXTRACT(month FROM pickup_datetime) IN (12, 1, 2) THEN 'winter'
+    	WHEN EXTRACT(month FROM pickup_datetime) IN (3, 4, 5) THEN 'spring'
+    	WHEN EXTRACT(month FROM pickup_datetime) IN (6, 7, 8) THEN 'summer'
+    	WHEN EXTRACT(month FROM pickup_datetime) IN (9, 10, 11) THEN 'fall'
+  	END AS season,
+	COUNT(*) AS count
+FROM trips AS U1
+INNER JOIN nyct2010_centroids AS U2 ON pickup_nyct2010_gid=nyct2010_centroids.gid
+INNER JOIN nyct2010_centroids AS U3 ON dropoff_nyct2010_gid=nyct2010_centroids.gid
+INNER JOIN central_park_weather_observations AS U4 on date(pickup_datetime)=U4.date
+WHERE pickup_nyct2010_gid IS NOT NULL 
+	AND dropoff_nyct2010_gid IS NOT NULL
+	AND pickup_datetime IS NOT NULL
+	AND pickup_longitude IS NOT NULL,
+	AND pickup_latitude IS NOT NULL,
+	AND dropoff_longitude IS NOT NULL,
+	AND dropoff_latitude IS NOT NULL,
+	AND ST_Distance_Sphere(ST_SetSRID(ST_MakePoint(dropoff_longitude, dropoff_latitude), 4326),U2.centroid)<405,
+	AND ST_Distance_Sphere(ST_SetSRID(ST_MakePoint(pickup_longitude, pickup_latitude), 4326),U3.centroid)<405,
+	AND U4.precipitation<=10
+GROUP BY pickup_nyct2010_gid, dropoff_nyct2010_gid,rush_hour,dow_type,season;
+
+
+
+
